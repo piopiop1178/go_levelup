@@ -1,4 +1,4 @@
-module github.com/piopiop1178/go_practice
+module github.com/piopiop1178/go_levelup
 
 go 1.16
 
