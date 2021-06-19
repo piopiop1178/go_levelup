@@ -9,7 +9,7 @@ import (
 )
 
 var client *redis.Client
-var ctx = context.Background() //context가 뭘까???
+var Ctx = context.Background() //context가 뭘까???
 
 func RedisInit() {
 	os.Setenv("REDIS_DSN", "redis:6379") //docker compose로 연결되어있으면 서비스 이름으로 연결 가능
@@ -20,10 +20,14 @@ func RedisInit() {
 	})
 
 	//check connection
-	_, err := client.Ping(ctx).Result()
+	_, err := client.Ping(Ctx).Result()
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println("redis init!!!")
+}
+
+func GetClient() *redis.Client {
+	return client
 }
