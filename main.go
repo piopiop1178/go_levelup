@@ -1,20 +1,14 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"github.com/piopiop1178/go_levelup/routers"
 )
 
 func main() {
-	router := gin.Default()
+	r := gin.Default()
 
-	router.LoadHTMLGlob("templates/*")
+	routers.Init(r)
 
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{"team": "K3"})
-
-	})
-
-	router.Run()
+	r.Run()
 }
