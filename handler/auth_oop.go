@@ -3,59 +3,44 @@ package handler
 import (
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/twinj/uuid"
 
-	"github.com/piopiop1178/go_levelup/common"
 	"github.com/piopiop1178/go_levelup/models"
 )
 
-//for test
-var user = models.User{
-	ID:       1,
-	Username: "kangsan",
-	Password: "1234",
+type LoginWorker struct {
+	TokenHandler TokenHandler
+	Db           models.TempDb
+	//method에 user 사용하는데 들어가야하는지?????
 }
 
-// type TokenInfo struct {
-// 	AccessToken  string
-// 	RefreshToken string
-// 	AccessUuid   string
-// 	RefreshUuid  string
-// 	AtExpires    int64
-// 	RtExpires    int64
-// }
+type TokenHandler struct {
+	//TokenInfo가 안에 들어가는지??
+}
 
-func Login(c *gin.Context) {
-	var u models.User
-
-	//request를 User 구조체에 binding
+func (w *LoginWorker) Login(c *gin.Context) {
+	var u models.User //worker 요소로 담아야하는지??
 	if err := c.ShouldBindJSON(&u); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, "Invalid data provided") //badrequest?
 		return
 	}
 
-	//-------------------------------------
-	//db에서 input id, password로 등록된 정보 있나 확인 함수로 교체
-
-	//임시로 위에 설정한 user와 일치하는지 확인
-	if u.Username != user.Username || u.Password != user.Password {
+	if w.Db.CheckLoginDetails(u.Username, u.Password) == false {
 		c.JSON(http.StatusUnauthorized, "Login details incorrect")
 		return
 	}
-	//-------------------------------------
 
-	ti, err := CreateToken(u.ID)
+	ti, err := w.TokenHandler.CreateToken(u.ID)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	saveErr := SaveTokenInfoToRedis(int64(u.ID), ti)
+	saveErr := w.Db.SaveTokenToDb(int64(u.ID), ti)
 	if saveErr != nil {
 		c.JSON(http.StatusUnprocessableEntity, saveErr.Error())
 	}
@@ -68,7 +53,7 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, tokens)
 }
 
-func CreateToken(userid uint64) (tokeninfo *models.TokenInfo, err error) {
+func (t *TokenHandler) CreateToken(userid uint64) (tokeninfo *models.TokenInfo, err error) {
 	ti := &models.TokenInfo{}
 	ti.AtExpires = time.Now().Add(time.Minute * 15).Unix() //access token 유효기간 15분 //why unix?
 	ti.AccessUuid = uuid.NewV4().String()
@@ -106,26 +91,4 @@ func CreateToken(userid uint64) (tokeninfo *models.TokenInfo, err error) {
 	}
 
 	return ti, nil
-}
-
-func SaveTokenInfoToRedis(userid int64, ti *models.TokenInfo) error {
-	client := common.GetClient()
-	ctx := common.Ctx
-
-	at := time.Unix(ti.AtExpires, 0) //converting Unix to UTC
-	rt := time.Unix(ti.RtExpires, 0)
-	now := time.Now()
-
-	//Atoi -> 문자열을 숫자로, Itoa -> 숫자를 문자열로
-	errAt := client.Set(ctx, ti.AccessUuid, strconv.Itoa(int(userid)), at.Sub(now)).Err()
-	if errAt != nil {
-		return errAt
-	}
-
-	errRt := client.Set(ctx, ti.RefreshUuid, strconv.Itoa(int(userid)), rt.Sub(now)).Err()
-	if errAt != nil {
-		return errRt
-	}
-
-	return nil
 }
