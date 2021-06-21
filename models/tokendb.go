@@ -14,6 +14,7 @@ type TokenDb interface {
 	Init()
 	SaveTokenToDb(userId uint64, ti *TokenInfo) error
 	CheckAccessTokenValidation(accessUuid string) (userId uint64, err error)
+	DeleteToken(Uuid string) (int64, error)
 }
 
 type TempTokenDb struct {
@@ -29,6 +30,10 @@ func (t *TempTokenDb) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 
 func (t *TempTokenDb) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
 	return 0, nil
+}
+
+func (t *TempTokenDb) DeleteToken(Uuid string) (int64, error) {
+	return 1, nil
 }
 
 type Redis struct {
@@ -85,4 +90,16 @@ func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, er
 	userId, _ = strconv.ParseUint(userIdBeforeParsing, 10, 64)
 
 	return userId, nil
+}
+
+func (r *Redis) DeleteToken(Uuid string) (int64, error) {
+	deleted, err := r.client.Del(context.Background(), Uuid).Result()
+	//return 값 뭔지?
+	fmt.Println(deleted)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return deleted, nil
 }

@@ -46,5 +46,7 @@ func Init(router *gin.Engine) {
 
 	router.POST("/login", w.Login)
 
+	router.POST("/logout", w.Logout)
+
 	router.POST("/token_test", th.CreateTodo)
 }

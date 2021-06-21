@@ -48,3 +48,18 @@ func (w *LoginWorker) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, tokens)
 }
+
+func (w *LoginWorker) Logout(c *gin.Context) {
+	accessUuid, err := w.TokenHandler.ExtractAccessUuid(c.Request)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, "Unauthrized")
+		return
+	}
+	deleted, delErr := w.TokenDb.DeleteToken(accessUuid)
+	if delErr != nil || deleted == 0 {
+		c.JSON(http.StatusUnauthorized, "Unauthrized")
+		return
+	}
+
+	c.JSON(http.StatusOK, "Successfully logged out")
+}
