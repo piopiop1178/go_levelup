@@ -14,7 +14,8 @@ import (
 
 type LoginWorker struct {
 	TokenHandler TokenHandler
-	Db           models.TempDb
+	TokenDb      models.TokenDb
+	Db           models.DB
 	//method에 user 사용하는데 들어가야하는지?????
 }
 
@@ -40,9 +41,10 @@ func (w *LoginWorker) Login(c *gin.Context) {
 		return
 	}
 
-	saveErr := w.Db.SaveTokenToDb(int64(u.ID), ti)
+	saveErr := w.TokenDb.SaveTokenToDb(int64(u.ID), ti)
 	if saveErr != nil {
 		c.JSON(http.StatusUnprocessableEntity, saveErr.Error())
+		return
 	}
 
 	tokens := map[string]string{
