@@ -1,58 +1,20 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gin-gonic/gin"
 	"github.com/twinj/uuid"
 
 	"github.com/piopiop1178/go_levelup/models"
 )
 
-type LoginWorker struct {
-	TokenHandler TokenHandler
-	TokenDb      models.TokenDb
-	Db           models.DB
-	//method에 user 사용하는데 들어가야하는지?????
-}
-
 type TokenHandler struct {
 	//TokenInfo가 안에 들어가는지??
-}
-
-func (w *LoginWorker) Login(c *gin.Context) {
-	var u models.User //worker 요소로 담아야하는지??
-	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, "Invalid data provided") //badrequest?
-		return
-	}
-
-	if w.Db.CheckLoginDetails(u.Username, u.Password) == false {
-		c.JSON(http.StatusUnauthorized, "Login details incorrect")
-		return
-	}
-
-	ti, err := w.TokenHandler.CreateToken(u.ID)
-	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, err.Error())
-		return
-	}
-
-	saveErr := w.TokenDb.SaveTokenToDb(int64(u.ID), ti)
-	if saveErr != nil {
-		c.JSON(http.StatusUnprocessableEntity, saveErr.Error())
-		return
-	}
-
-	tokens := map[string]string{
-		"access_token":  ti.AccessToken,
-		"refresh_token": ti.RefreshToken,
-	}
-
-	c.JSON(http.StatusOK, tokens)
 }
 
 func (t *TokenHandler) CreateToken(userid uint64) (tokeninfo *models.TokenInfo, err error) {
@@ -93,4 +55,46 @@ func (t *TokenHandler) CreateToken(userid uint64) (tokeninfo *models.TokenInfo, 
 	}
 
 	return ti, nil
+}
+
+//extract token from request header
+func (t *TokenHandler) ExtractToken(r *http.Request) string {
+	bearToken := r.Header.Get("Authorization")
+	strArr := strings.Split(bearToken, " ")
+	if len(strArr) == 2 {
+		return strArr[1]
+	}
+
+	return ""
+}
+
+func (t *TokenHandler) VerifyToken(r *http.Request) (*jwt.Token, error) {
+	tokenString := t.ExtractToken(r)
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		//check signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("ACCESS_TOKEN_KEY")), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+func (t *TokenHandler) CheckTokenExpiration(r *http.Request) error {
+	token, err := t.VerifyToken(r)
+
+	if err != nil {
+		return err
+	}
+	//token의 claims의 type이 jwt.claims인지 확인??
+	fmt.Println(token.Claims.(jwt.Claims))
+	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
+		return err
+	}
+	//token의 claims의 type이 jwt.claims인지 확인??
+	return nil
 }
