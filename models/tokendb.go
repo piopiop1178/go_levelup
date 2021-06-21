@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -81,9 +80,6 @@ func (r *Redis) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
 	userIdBeforeParsing, err := r.client.Get(context.Background(), accessUuid).Result()
 
-	//for test
-	fmt.Println(userIdBeforeParsing)
-
 	if err != nil {
 		return 0, nil
 	}
@@ -94,8 +90,6 @@ func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, er
 
 func (r *Redis) DeleteToken(Uuid string) (int64, error) {
 	deleted, err := r.client.Del(context.Background(), Uuid).Result()
-	//return 값 뭔지?
-	fmt.Println(deleted)
 
 	if err != nil {
 		return 0, err

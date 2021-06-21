@@ -63,3 +63,19 @@ func (w *LoginWorker) Logout(c *gin.Context) {
 
 	c.JSON(http.StatusOK, "Successfully logged out")
 }
+
+func (w *LoginWorker) TokenRefresh(c *gin.Context) {
+	mapToken := map[string]string{}
+	if err := c.ShouldBind(&mapToken); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	refreshToken := mapToken["refresh_token"]
+
+	token, err := w.TokenHandler.VerifyRefreshTokenSigningMethod(refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, "Refresh Token was expired")
+		return
+	}
+
+}

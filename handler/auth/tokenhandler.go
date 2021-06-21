@@ -69,7 +69,7 @@ func (t *TokenHandler) ExtractToken(r *http.Request) string {
 	return ""
 }
 
-func (t *TokenHandler) VerifyToken(r *http.Request) (*jwt.Token, error) {
+func (t *TokenHandler) VerifyAccessTokenSigningMethod(r *http.Request) (*jwt.Token, error) {
 	tokenString := t.ExtractToken(r)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		//check signing method
@@ -85,14 +85,28 @@ func (t *TokenHandler) VerifyToken(r *http.Request) (*jwt.Token, error) {
 	return token, nil
 }
 
-func (t *TokenHandler) CheckTokenExpiration(r *http.Request) error {
-	token, err := t.VerifyToken(r)
+func (t *TokenHandler) VerifyRefreshTokenSigningMethod(refreshToken string) (*jwt.Token, error) {
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		//check signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("REFRESH_TOKEN_KEY")), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
+}
+
+func (t *TokenHandler) CheckTokenValidation(r *http.Request) error {
+	token, err := t.VerifyAccessTokenSigningMethod(r)
 
 	if err != nil {
 		return err
 	}
 	//token의 claims의 type이 jwt.claims인지 확인??
-	fmt.Println(token.Claims.(jwt.Claims))
 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
 		return err
 	}
@@ -102,11 +116,12 @@ func (t *TokenHandler) CheckTokenExpiration(r *http.Request) error {
 
 //token db에서 조회할 토큰 accessuuid 추출
 func (t *TokenHandler) ExtractAccessUuid(r *http.Request) (string, error) {
-	token, err := t.VerifyToken(r)
+	token, err := t.VerifyAccessTokenSigningMethod(r)
 	if err != nil {
 		return "", err
 	}
 
+	//token.Claims는 jwt.MapClaims도 되고 jwt.Claims도 됨?? -> interface를 type으로 convert하는 것?
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if ok && token.Valid {
 		atUuid, ok := claims["access_uuid"].(string)
@@ -118,3 +133,5 @@ func (t *TokenHandler) ExtractAccessUuid(r *http.Request) (string, error) {
 	}
 	return "", errors.New("not valid token")
 }
+
+//위에 함수 두개 반이 겹치는데 최적화??

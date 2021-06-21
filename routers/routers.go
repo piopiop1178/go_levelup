@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	handler "github.com/piopiop1178/go_levelup/handler/auth"
+	"github.com/piopiop1178/go_levelup/middleware"
 	"github.com/piopiop1178/go_levelup/models"
 	// ginSwagger "github.com/swaggo/gin-swagger"
 	// swaggerFiles "github.com/swaggo/gin-swagger/swaggerFiles"
@@ -32,6 +33,9 @@ func Init(router *gin.Engine) {
 		TokenHdlr: tokenhdlr,
 	}
 
+	//인자로 tokenhdlr 넣어야된느지?
+	tm := &middleware.TokenMiddleware{}
+
 	//같은 db 들어가야되는디?
 	//이거 맞는지 모르겠다
 	router.LoadHTMLGlob("templates/*")
@@ -46,7 +50,7 @@ func Init(router *gin.Engine) {
 
 	router.POST("/login", w.Login)
 
-	router.POST("/logout", w.Logout)
+	router.POST("/logout", tm.TokenAuthMiddleware(), w.Logout)
 
-	router.POST("/token_test", th.CreateTodo)
+	router.POST("/token_test", tm.TokenAuthMiddleware(), th.CreateTodo)
 }
