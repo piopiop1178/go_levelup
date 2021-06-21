@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -97,4 +98,23 @@ func (t *TokenHandler) CheckTokenExpiration(r *http.Request) error {
 	}
 	//token의 claims의 type이 jwt.claims인지 확인??
 	return nil
+}
+
+//token db에서 조회할 토큰 accessuuid 추출
+func (t *TokenHandler) ExtractAccessUuid(r *http.Request) (string, error) {
+	token, err := t.VerifyToken(r)
+	if err != nil {
+		return "", err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if ok && token.Valid {
+		atUuid, ok := claims["access_uuid"].(string)
+		if !ok {
+			return "", errors.New("error with find access uuid")
+		}
+
+		return atUuid, nil
+	}
+	return "", errors.New("not valid token")
 }

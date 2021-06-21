@@ -18,14 +18,16 @@ type LoginWorker struct {
 func (w *LoginWorker) Login(c *gin.Context) {
 	var u models.User //worker 요소로 담아야하는지??
 	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, "Invalid data provided") //badrequest?
+		c.JSON(http.StatusUnprocessableEntity, "Invalid data provided")
 		return
 	}
 
-	if w.Db.CheckLoginDetails(u.Username, u.Password) == false {
+	userId, err := w.Db.CheckLoginDetails(u.Username, u.Password)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, "Login details incorrect")
 		return
 	}
+	u.ID = userId
 
 	ti, err := w.TokenHandler.CreateToken(u.ID)
 	if err != nil {
@@ -33,7 +35,7 @@ func (w *LoginWorker) Login(c *gin.Context) {
 		return
 	}
 
-	saveErr := w.TokenDb.SaveTokenToDb(int64(u.ID), ti)
+	saveErr := w.TokenDb.SaveTokenToDb(uint64(u.ID), ti)
 	if saveErr != nil {
 		c.JSON(http.StatusUnprocessableEntity, saveErr.Error())
 		return

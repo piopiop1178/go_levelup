@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -11,7 +12,8 @@ import (
 
 type TokenDb interface {
 	Init()
-	SaveTokenToDb(userid int64, ti *TokenInfo) error
+	SaveTokenToDb(userId uint64, ti *TokenInfo) error
+	CheckAccessTokenValidation(accessUuid string) (userId uint64, err error)
 }
 
 type TempTokenDb struct {
@@ -20,9 +22,13 @@ type TempTokenDb struct {
 func (t *TempTokenDb) Init() {
 }
 
-func (t *TempTokenDb) SaveTokenToDb(userid int64, ti *TokenInfo) error {
+func (t *TempTokenDb) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 	//tmp list에 저장?
 	return nil
+}
+
+func (t *TempTokenDb) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
+	return 0, nil
 }
 
 type Redis struct {
@@ -46,7 +52,7 @@ func (r *Redis) Init() {
 	}
 }
 
-func (r *Redis) SaveTokenToDb(userid int64, ti *TokenInfo) error {
+func (r *Redis) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 	ctx := context.Background()
 
 	at := time.Unix(ti.AtExpires, 0) //converting Unix to UTC
@@ -54,15 +60,29 @@ func (r *Redis) SaveTokenToDb(userid int64, ti *TokenInfo) error {
 	now := time.Now()
 
 	//Atoi -> 문자열을 숫자로, Itoa -> 숫자를 문자열로
-	errAt := r.client.Set(ctx, ti.AccessUuid, strconv.Itoa(int(userid)), at.Sub(now)).Err()
+	errAt := r.client.Set(ctx, ti.AccessUuid, strconv.Itoa(int(userId)), at.Sub(now)).Err()
 	if errAt != nil {
 		return errAt
 	}
 
-	errRt := r.client.Set(ctx, ti.RefreshUuid, strconv.Itoa(int(userid)), rt.Sub(now)).Err()
+	errRt := r.client.Set(ctx, ti.RefreshUuid, strconv.Itoa(int(userId)), rt.Sub(now)).Err()
 	if errAt != nil {
 		return errRt
 	}
 
 	return nil
+}
+
+func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
+	userIdBeforeParsing, err := r.client.Get(context.Background(), accessUuid).Result()
+
+	//for test
+	fmt.Println(userIdBeforeParsing)
+
+	if err != nil {
+		return 0, nil
+	}
+	userId, _ = strconv.ParseUint(userIdBeforeParsing, 10, 64)
+
+	return userId, nil
 }

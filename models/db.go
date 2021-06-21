@@ -1,8 +1,10 @@
 package models
 
+import "errors"
+
 type DB interface {
 	Init()
-	CheckLoginDetails(username string, password string) bool
+	CheckLoginDetails(username string, password string) (uint64, error)
 }
 
 type TempDb struct {
@@ -17,9 +19,11 @@ var user = User{
 func (t *TempDb) Init() {
 }
 
-func (t *TempDb) CheckLoginDetails(username string, password string) bool {
+func (t *TempDb) CheckLoginDetails(username string, password string) (userId uint64, err error) {
 	if username != user.Username || password != user.Password {
-		return false
+		return 0, errors.New("Invalid login details")
 	}
-	return true
+
+	//실제 db에서는 유저 id 반환
+	return 1, nil
 }
