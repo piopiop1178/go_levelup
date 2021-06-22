@@ -16,11 +16,12 @@ func Init(router *gin.Engine) {
 	db.Init()
 
 	tokendb := models.Redis{}
+	// tokendb := models.TempTokenDb{}
 	tokendb.Init()
 
 	tokenhdlr := handler.TokenHandler{}
 
-	//이렇게 초기화하는게 맞는지 모르겠음 / 왜 db, tokendb는 포인터?(인터페이스 내 메소드 사용 가능해야함 -> 포인터?)
+	//이렇게 초기화하는게 맞는지 모르겠음 / tokenhandler는 method만 쓸건데 넣어줘야하는지????
 	w := &handler.LoginWorker{
 		Db:           &db,
 		TokenDb:      &tokendb,
@@ -33,10 +34,11 @@ func Init(router *gin.Engine) {
 		TokenHdlr: tokenhdlr,
 	}
 
-	//인자로 tokenhdlr 넣어야된느지?
-	tm := &middleware.TokenMiddleware{}
+	tm := &middleware.TokenMiddleware{
+		TokenDb:   &tokendb,
+		TokenHdlr: tokenhdlr,
+	}
 
-	//같은 db 들어가야되는디?
 	//이거 맞는지 모르겠다
 	router.LoadHTMLGlob("templates/*")
 
@@ -53,4 +55,6 @@ func Init(router *gin.Engine) {
 	router.POST("/logout", tm.TokenAuthMiddleware(), w.Logout)
 
 	router.POST("/token_test", tm.TokenAuthMiddleware(), th.CreateTodo)
+
+	router.POST("/token/refresh", w.TokenRefresh)
 }

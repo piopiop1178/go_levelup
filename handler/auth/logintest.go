@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,7 +27,20 @@ func (th *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	AtUuid, err := th.TokenHdlr.ExtractAccessUuid(c.Request)
+	tokenString := th.TokenHdlr.ExtractTokenString(c.Request)
+	if tokenString == "" {
+		c.JSON(http.StatusBadRequest, "cannot get Token")
+		return
+	}
+
+	accessTokenKey := os.Getenv("ACCESS_TOKEN_KEY")
+	accessToken, err := th.TokenHdlr.GetTokenFromTokenString(tokenString, accessTokenKey)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	_, AtUuid, err := th.TokenHdlr.ExtractUserIdandUuid(accessToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, "unauthorized")
 		return

@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -50,13 +52,31 @@ func (w *LoginWorker) Login(c *gin.Context) {
 }
 
 func (w *LoginWorker) Logout(c *gin.Context) {
-	accessUuid, err := w.TokenHandler.ExtractAccessUuid(c.Request)
+	tokenString := w.TokenHandler.ExtractTokenString(c.Request)
+	if tokenString == "" {
+		fmt.Println("string")
+		c.JSON(http.StatusBadRequest, "cannot get Token")
+		return
+	}
+
+	accessTokenKey := os.Getenv("ACCESS_TOKEN_KEY")
+	accessToken, err := w.TokenHandler.GetTokenFromTokenString(tokenString, accessTokenKey)
 	if err != nil {
+		fmt.Println("token")
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	_, accessUuid, err := w.TokenHandler.ExtractUserIdandUuid(accessToken)
+	if err != nil {
+		fmt.Println("getid")
 		c.JSON(http.StatusUnauthorized, "Unauthrized")
 		return
 	}
+
 	deleted, delErr := w.TokenDb.DeleteToken(accessUuid)
 	if delErr != nil || deleted == 0 {
+		fmt.Println("delete")
 		c.JSON(http.StatusUnauthorized, "Unauthrized")
 		return
 	}
@@ -72,10 +92,49 @@ func (w *LoginWorker) TokenRefresh(c *gin.Context) {
 	}
 	refreshToken := mapToken["refresh_token"]
 
-	token, err := w.TokenHandler.VerifyRefreshTokenSigningMethod(refreshToken)
+	//get refreshtoken
+	refreshTokenKey := os.Getenv("REFRESH_TOKEN_KEY")
+	token, err := w.TokenHandler.GetTokenFromTokenString(refreshToken, refreshTokenKey)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, "Refresh Token was expired")
 		return
 	}
 
+	//check refreshtoken validation
+	if err := w.TokenHandler.CheckTokenValidation(token); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	//get userid, uuid from refreshtoken
+	userId, uuid, err := w.TokenHandler.ExtractUserIdandUuid(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, "Error occurred")
+		return
+	}
+
+	//기존의 리프레시 토큰 삭제
+	deleted, delErr := w.TokenDb.DeleteToken(uuid)
+	if delErr != nil || deleted == 0 {
+		c.JSON(http.StatusUnauthorized, "Unauthrized")
+		return
+	}
+
+	ti, err := w.TokenHandler.CreateToken(userId)
+	if err != nil {
+		c.JSON(http.StatusForbidden, err.Error())
+		return
+	}
+
+	saveErr := w.TokenDb.SaveTokenToDb(userId, ti)
+	if saveErr != nil {
+		c.JSON(http.StatusForbidden, saveErr.Error())
+		return
+	}
+
+	tokens := map[string]string{
+		"access_token":  ti.AccessToken,
+		"refresh_token": ti.RefreshToken,
+	}
+	c.JSON(http.StatusCreated, tokens)
 }

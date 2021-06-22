@@ -28,7 +28,7 @@ func (t *TempTokenDb) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 }
 
 func (t *TempTokenDb) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
-	return 0, nil
+	return 1, nil
 }
 
 func (t *TempTokenDb) DeleteToken(Uuid string) (int64, error) {
@@ -81,7 +81,7 @@ func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, er
 	userIdBeforeParsing, err := r.client.Get(context.Background(), accessUuid).Result()
 
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	userId, _ = strconv.ParseUint(userIdBeforeParsing, 10, 64)
 
