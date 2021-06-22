@@ -31,9 +31,10 @@ func (t *TokenHandler) CreateToken(userid uint64) (tokeninfo *models.TokenInfo, 
 	//create access token
 	os.Setenv("ACCESS_TOKEN_KEY", "kkkkkkkkk") //따로 설정 필요
 
+	//claim에 담을 정보들 담기
 	atClaims := jwt.MapClaims{}
 	atClaims["authorized"] = true
-	atClaims["access_uuid"] = ti.AccessUuid
+	atClaims["uuid"] = ti.AccessUuid
 	atClaims["user_id"] = userid
 	atClaims["exp"] = ti.AtExpires
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims) //HS256 -> 대칭키방식
@@ -46,7 +47,7 @@ func (t *TokenHandler) CreateToken(userid uint64) (tokeninfo *models.TokenInfo, 
 	//create refresh token
 	os.Setenv("REFRESH_TOKEN_KEY", "sssssssss") //따로 설정 필요
 	rtClaims := jwt.MapClaims{}
-	rtClaims["access_uuid"] = ti.RefreshUuid
+	rtClaims["uuid"] = ti.RefreshUuid
 	rtClaims["user_id"] = userid
 	rtClaims["exp"] = ti.RtExpires
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims) //HS256 -> 대칭키방식
@@ -81,7 +82,6 @@ func (t *TokenHandler) GetTokenFromTokenString(tokenString string, key string) (
 		return []byte(key), nil
 	})
 	if err != nil {
-		fmt.Println("gettokenfromstring")
 		return nil, err
 	}
 
@@ -106,7 +106,7 @@ func (t *TokenHandler) ExtractUserIdandUuid(token *jwt.Token) (uint64, string, e
 		if err != nil {
 			return 0, "", errors.New("error with find userid")
 		}
-		uuid, ok := claims["access_uuid"].(string) //refresh uuid 추출하는 상황이 있을지??
+		uuid, ok := claims["uuid"].(string) //refresh uuid 추출하는 상황이 있을지??
 
 		if !ok {
 			return 0, "", errors.New("error with find uuid")

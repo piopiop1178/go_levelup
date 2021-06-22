@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
@@ -18,12 +17,15 @@ type LoginWorker struct {
 }
 
 func (w *LoginWorker) Login(c *gin.Context) {
-	var u models.User //worker 요소로 담아야하는지??
+	var u models.User
+
+	//request body의 내용 user 구조체로 변환
 	if err := c.ShouldBindJSON(&u); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, "Invalid data provided")
 		return
 	}
 
+	//db에서 올바른 id, password인지 확인
 	userId, err := w.Db.CheckLoginDetails(u.Username, u.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, "Login details incorrect")
@@ -31,12 +33,14 @@ func (w *LoginWorker) Login(c *gin.Context) {
 	}
 	u.ID = userId
 
+	//access token, refresh token 사용
 	ti, err := w.TokenHandler.CreateToken(u.ID)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
+	//생성된 토큰 token db에 저장(redis)
 	saveErr := w.TokenDb.SaveTokenToDb(uint64(u.ID), ti)
 	if saveErr != nil {
 		c.JSON(http.StatusUnprocessableEntity, saveErr.Error())
@@ -52,34 +56,57 @@ func (w *LoginWorker) Login(c *gin.Context) {
 }
 
 func (w *LoginWorker) Logout(c *gin.Context) {
+	//request header에서 access token 추출
 	tokenString := w.TokenHandler.ExtractTokenString(c.Request)
 	if tokenString == "" {
-		fmt.Println("string")
 		c.JSON(http.StatusBadRequest, "cannot get Token")
 		return
 	}
 
+	//token string token으로 변환(복호화)
 	accessTokenKey := os.Getenv("ACCESS_TOKEN_KEY")
 	accessToken, err := w.TokenHandler.GetTokenFromTokenString(tokenString, accessTokenKey)
 	if err != nil {
-		fmt.Println("token")
 		c.JSON(http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
+	//tokendb에서 token의 key인 uuid 추출
 	_, accessUuid, err := w.TokenHandler.ExtractUserIdandUuid(accessToken)
 	if err != nil {
-		fmt.Println("getid")
 		c.JSON(http.StatusUnauthorized, "Unauthrized")
 		return
 	}
 
-	deleted, delErr := w.TokenDb.DeleteToken(accessUuid)
-	if delErr != nil || deleted == 0 {
-		fmt.Println("delete")
+	//tokendb에서 access token 삭제
+	atDeleted, atDelErr := w.TokenDb.DeleteToken(accessUuid)
+	if atDelErr != nil || atDeleted == 0 {
 		c.JSON(http.StatusUnauthorized, "Unauthrized")
 		return
 	}
+
+	// -------------------------- logout 할 때 refresh token도 삭제 ------------------------------
+	// ------------ refresh token header? body? 어디서 받는지 확인중 ----------------------
+
+	// refreshTokenKey := os.Getenv("REFRESH_TOKEN_KEY")
+	// refreshToken, err := w.TokenHandler.GetTokenFromTokenString(tokenString, refreshTokenKey)
+	// if err != nil {
+	// 	c.JSON(http.StatusUnprocessableEntity, err.Error())
+	// 	return
+	// }
+
+	// _, refreshUuid, err := w.TokenHandler.ExtractUserIdandUuid(refreshToken)
+	// if err != nil {
+	// 	c.JSON(http.StatusUnauthorized, "Unauthrized")
+	// 	return
+	// }
+
+	// rtDeleted, rtDelErr := w.TokenDb.DeleteToken(refreshUuid)
+	// if rtDelErr != nil || rtDeleted == 0 {
+	// 	c.JSON(http.StatusUnauthorized, "Unauthrized")
+	// 	return
+	// }
+	// -------------------------- logout 할 때 refresh token도 삭제 ------------------------------
 
 	c.JSON(http.StatusOK, "Successfully logged out")
 }

@@ -46,7 +46,7 @@ func (th *TodoHandler) CreateTodo(c *gin.Context) {
 		return
 	}
 
-	userId, err := th.TokenDb.CheckAccessTokenValidation(AtUuid)
+	userId, err := th.TokenDb.CheckTokenValidation(AtUuid)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, "unauthorized")
 		return

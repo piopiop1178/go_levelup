@@ -12,7 +12,7 @@ import (
 type TokenDb interface {
 	Init()
 	SaveTokenToDb(userId uint64, ti *TokenInfo) error
-	CheckAccessTokenValidation(accessUuid string) (userId uint64, err error)
+	CheckTokenValidation(uuid string) (userId uint64, err error)
 	DeleteToken(Uuid string) (int64, error)
 }
 
@@ -27,7 +27,7 @@ func (t *TempTokenDb) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 	return nil
 }
 
-func (t *TempTokenDb) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
+func (t *TempTokenDb) CheckTokenValidation(uuid string) (userId uint64, err error) {
 	return 1, nil
 }
 
@@ -77,8 +77,9 @@ func (r *Redis) SaveTokenToDb(userId uint64, ti *TokenInfo) error {
 	return nil
 }
 
-func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, err error) {
-	userIdBeforeParsing, err := r.client.Get(context.Background(), accessUuid).Result()
+//tokendb에 token 저장되어있는지 확인
+func (r *Redis) CheckTokenValidation(uuid string) (userId uint64, err error) {
+	userIdBeforeParsing, err := r.client.Get(context.Background(), uuid).Result()
 
 	if err != nil {
 		return 0, err
@@ -88,8 +89,8 @@ func (r *Redis) CheckAccessTokenValidation(accessUuid string) (userId uint64, er
 	return userId, nil
 }
 
-func (r *Redis) DeleteToken(Uuid string) (int64, error) {
-	deleted, err := r.client.Del(context.Background(), Uuid).Result()
+func (r *Redis) DeleteToken(uuid string) (int64, error) {
+	deleted, err := r.client.Del(context.Background(), uuid).Result()
 
 	if err != nil {
 		return 0, err

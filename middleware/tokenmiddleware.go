@@ -44,7 +44,7 @@ func (tm *TokenMiddleware) TokenAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		_, dbErr := tm.TokenDb.CheckAccessTokenValidation(uuid)
+		_, dbErr := tm.TokenDb.CheckTokenValidation(uuid)
 		if dbErr != nil {
 			c.JSON(http.StatusUnauthorized, "로그아웃 된 토큰")
 			c.Abort()
